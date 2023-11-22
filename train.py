@@ -1,4 +1,5 @@
 ## import libraries for training
+import os
 import sys
 import warnings
 from datetime import datetime
@@ -9,15 +10,20 @@ from sklearn.model_selection import train_test_split
 from torch import optim
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
-from data import knifeDataset
-import timm
-from utils import *
+from data import knifeDataset # Custom module for dataset handling
+import timm                   # "PyTorch Image Models" for pretrained models, ResNet, EfficientNet. 
+                              # A collection of SOTA image models including CNNs versions, Vision Tranformers.
+from utils import *           # Utility functions
+import warnings
 warnings.filterwarnings('ignore')
+
+# Configurations
+from config import config
 
 ## Writing the loss and results
 if not os.path.exists("./logs/"):
     os.mkdir("./logs/")
-log = Logger()
+log = Logger()                  # Logger Setup
 log.open("logs/%s_log_train.txt")
 log.write("\n----------------------------------------------- [START %s] %s\n\n" % (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), '-' * 51))
 log.write('                           |----- Train -----|----- Valid----|---------|\n')
@@ -25,7 +31,7 @@ log.write('mode     iter     epoch    |       loss      |        mAP    | time  
 log.write('-------------------------------------------------------------------------------------------\n')
 
 ## Training the model
-def train(train_loader,model,criterion,optimizer,epoch,valid_accuracy,start):
+def train(train_loader, model, criterion, optimizer, epoch, valid_accuracy, start):
     losses = AverageMeter()
     model.train()
     model.training=True
@@ -94,36 +100,108 @@ def map_accuracy(probs, truth, k=5):
         return map5, acc1, acc5
 
 ######################## load file and get splits #############################
-train_imlist = pd.read_csv("train.csv")
-train_gen = knifeDataset(train_imlist,mode="train")
-train_loader = DataLoader(train_gen,batch_size=config.batch_size,shuffle=True,pin_memory=True,num_workers=8)
-val_imlist = pd.read_csv("test.csv")
-val_gen = knifeDataset(val_imlist,mode="val")
-val_loader = DataLoader(val_gen,batch_size=config.batch_size,shuffle=False,pin_memory=True,num_workers=8)
+# Load training and validation data accordingly
+train_imlist = pd.read_csv("/content/drive/My Drive/Knives/train.csv")
+# Update image paths in the DataFrames
+train_imlist['Id'] = train_imlist['Id'].apply(lambda x: '/content/drive/My Drive/Knives/' + x)
 
-## Loading the model to run
-model = timm.create_model('tf_efficientnet_b0', pretrained=True,num_classes=config.n_classes)
+# Create datasets and dataloaders
+train_gen = knifeDataset(train_imlist, mode="train")
+train_loader = DataLoader(train_gen, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=8)
+
+val_imlist = pd.read_csv("/content/drive/My Drive/Knives/test.csv")
+val_imlist['Id'] = val_imlist['Id'].apply(lambda x: '/content/drive/My Drive/Knives/' + x)
+
+val_gen = knifeDataset(val_imlist, mode="val")
+val_loader = DataLoader(val_gen, batch_size=config.batch_size, shuffle=False, pin_memory=True, num_workers=8)
+
+
+## Loading the model to run/setup
+model = timm.create_model('tf_efficientnet_b0', pretrained=True, num_classes=config.n_classes)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
 ############################# Parameters #################################
+# Optimizer and scheduler setup
 optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
 scheduler = lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=config.epochs * len(train_loader), eta_min=0,last_epoch=-1)
 criterion = nn.CrossEntropyLoss().cuda()
 
+
+# optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+
+
+
+########################### Checkpoint ##################################
+
+# Check for an existing checkpoint and load if found
+checkpoint_path = "/content/drive/My Drive/Knives/Model_Checkpoints/last_checkpoint.pth"
+if os.path.exists(checkpoint_path):
+    checkpoint = torch.load(checkpoint_path)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    start_epoch = checkpoint['epoch']
+else:
+    start_epoch = 0
+
 ############################# Training #################################
-start_epoch = 0
-val_metrics = [0]
 scaler = torch.cuda.amp.GradScaler()
 start = timer()
-#train
-for epoch in range(0,config.epochs):
+best_val_metric = float('inf')  # or -float('inf') for accuracy or other metrics
+
+val_metrics = [0]
+
+for epoch in range(start_epoch, config.epochs):
     lr = get_learning_rate(optimizer)
-    train_metrics = train(train_loader,model,criterion,optimizer,epoch,val_metrics,start)
-    val_metrics = evaluate(val_loader,model,criterion,epoch,train_metrics,start)
-    ## Saving the model
+    train_metrics = train(train_loader, model, criterion, optimizer, epoch, val_metrics, start)
+    val_metrics = evaluate(val_loader, model, criterion, epoch, train_metrics, start)
+
+    # Saving the model checkpoint after each epoch
+    checkpoint = {
+        'epoch': epoch + 1,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'scaler_state_dict': scaler.state_dict(),  # If using mixed precision
+    }
+    torch.save(checkpoint, checkpoint_path)
+
+    ## Saving the current model
     filename = "Knife-Effb0-E" + str(epoch + 1)+  ".pt"
     torch.save(model.state_dict(), filename)
+
+    # Optionally, save the best model based on validation metric
+    if val_metrics[0] < best_val_metric:  # Adjust this condition based on your metric
+        print(f"New best metric achieved: {val_metrics[0]}")
+        best_val_metric = val_metrics[0]
+        best_model_path = "/content/drive/My Drive/Knives/Model_Checkpoints/best_model.pth"
+        torch.save(model.state_dict(), best_model_path)
+    
+     # ... [any other code needed at the end of each epoch] ...
+
+
+    # Update learning rate scheduler
+    if scheduler is not None:
+        scheduler.step()
+
+# ... [any code after completing all epochs, like closing loggers] ...
+
+
+
+
+############################# Training #################################
+#start_epoch = 0
+#val_metrics = [0]
+#scaler = torch.cuda.amp.GradScaler()
+#start = timer()
+#train
+#for epoch in range(0, config.epochs):
+#    lr = get_learning_rate(optimizer)
+#    train_metrics = train(train_loader, model, criterion, optimizer, epoch, val_metrics, start)
+#    val_metrics = evaluate(val_loader, model, criterion, epoch, train_metrics, start)
+    
+    ## Saving the model
+#    filename = "Knife-Effb0-E" + str(epoch + 1)+  ".pt"
+#    torch.save(model.state_dict(), filename)
     
 
    
