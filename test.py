@@ -50,10 +50,10 @@ def map_accuracy(probs, truth, k=5):
 
 ######################## load file and get splits #############################
 print('reading test file')
-test_files = pd.read_csv("test.csv")
+test_files = pd.read_csv("/content/drive/My Drive/Knives/test.csv")
 print('Creating test dataloader')
-test_gen = knifeDataset(test_files,mode="val")
-test_loader = DataLoader(test_gen,batch_size=64,shuffle=False,pin_memory=True,num_workers=8)
+test_gen = knifeDataset(test_files, mode="test") #CHANGED the mode to test, not val (NOT Correct to test with training data -> Doc in REPORT)
+test_loader = DataLoader(test_gen, batch_size=64, shuffle=False, pin_memory=True, num_workers=8)
 
 print('loading trained model')
 model = timm.create_model('tf_efficientnet_b0', pretrained=True,num_classes=config.n_classes)
