@@ -11,20 +11,24 @@ from torch import optim
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
 from data import knifeDataset # Custom module for dataset handling
-import timm                   # "PyTorch Image Models" for pretrained models, ResNet, EfficientNet. 
-                              # A collection of SOTA image models including CNNs versions, Vision Tranformers.
+import timm                   # "PyTorch Image Models" for pretrained models, ResNet, EfficientNet. A collection of SOTA image models including CNNs versions, Vision Tranformers.
 from utils import *           # Utility functions
 import warnings
-warnings.filterwarnings('ignore')
+
+# import CNNs models
+from alexNetModel import ModifiedAlexNet
+
 
 # Configurations
 from config import config
 
+
+warnings.filterwarnings('ignore')
 ## Writing the loss and results
 if not os.path.exists("./logs/"):
     os.mkdir("./logs/")
 log = Logger()                  # Logger Setup
-log.open("logs/%s_log_train.txt")
+log.open("logs/s_log_train_2.txt")
 log.write("\n----------------------------------------------- [START %s] %s\n\n" % (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), '-' * 51))
 log.write('                           |----- Train -----|----- Valid----|---------|\n')
 log.write('mode     iter     epoch    |       loss      |        mAP    | time    |\n')
@@ -51,7 +55,7 @@ def train(train_loader, model, criterion, optimizer, epoch, valid_accuracy, star
 
         print('\r',end='',flush=True)
         message = '%s %5.1f %6.1f        |      %0.3f     |      %0.3f     | %s' % (\
-                "train", i, epoch,losses.avg,valid_accuracy[0],time_to_str((timer() - start),'min'))
+                "train", i, epoch, losses.avg, valid_accuracy[0], time_to_str((timer() - start),'min'))
         print(message , end='',flush=True)
     log.write("\n")
     log.write(message)
@@ -59,7 +63,7 @@ def train(train_loader, model, criterion, optimizer, epoch, valid_accuracy, star
     return [losses.avg]
 
 # Validating the model
-def evaluate(val_loader,model,criterion,epoch,train_loss,start):
+def evaluate(val_loader, model, criterion, epoch, train_loss, start):
     model.cuda()
     model.eval()
     model.training=False
@@ -109,8 +113,9 @@ train_imlist['Id'] = train_imlist['Id'].apply(lambda x: '/content/drive/My Drive
 train_gen = knifeDataset(train_imlist, mode="train")
 train_loader = DataLoader(train_gen, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=8)
 
-val_imlist = pd.read_csv("/content/drive/My Drive/Knives/test.csv")
-val_imlist['Id'] = val_imlist['Id'].apply(lambda x: '/content/drive/My Drive/Knives/' + x)
+# For Validation using val.csv instead of test.csv (as it was by default)
+val_imlist = pd.read_csv("/content/drive/My Drive/Knives/val.csv") # CHANGED to appropriate csv file for validation, (Not validate with test.csv)
+val_imlist['Id'] = val_imlist['Id'].apply(lambda x: '/content/drive/My Drive/Knives/' + x)  # -> Doc in REPORT)
 
 val_gen = knifeDataset(val_imlist, mode="val")
 val_loader = DataLoader(val_gen, batch_size=config.batch_size, shuffle=False, pin_memory=True, num_workers=8)
@@ -118,6 +123,9 @@ val_loader = DataLoader(val_gen, batch_size=config.batch_size, shuffle=False, pi
 
 ## Loading the model to run/setup
 model = timm.create_model('tf_efficientnet_b0', pretrained=True, num_classes=config.n_classes)
+# model = ModifiedAlexNet()  # UNCOMMENT
+
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
@@ -169,9 +177,17 @@ for epoch in range(start_epoch, config.epochs):
     filename = "Knife-Effb0-E" + str(epoch + 1)+  ".pt"
     torch.save(model.state_dict(), filename)
 
+    ## Saving the AlexNet model
+    #filename = "Knife_AlexNet_Epoch_" + str(epoch + 1) + ".pt"
+    #torch.save(model.state_dict(), filename)
+
+
+
+
+
     # Optionally, save the best model based on validation metric
     if val_metrics[0] < best_val_metric:  # Adjust this condition based on your metric
-        print(f"New best metric achieved: {val_metrics[0]}")
+        print(f"\nNew best metric achieved: {val_metrics[0]}")
         best_val_metric = val_metrics[0]
         best_model_path = "/content/drive/My Drive/Knives/Model_Checkpoints/best_model.pth"
         torch.save(model.state_dict(), best_model_path)
@@ -179,9 +195,12 @@ for epoch in range(start_epoch, config.epochs):
      # ... [any other code needed at the end of each epoch] ...
 
 
-    # Update learning rate scheduler
-    if scheduler is not None:
-        scheduler.step()
+   
+
+
+
+
+
 
 # ... [any code after completing all epochs, like closing loggers] ...
 
