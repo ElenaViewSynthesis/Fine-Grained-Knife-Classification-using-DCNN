@@ -12,12 +12,13 @@ from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
 from data import knifeDataset # Custom module for dataset handling
 import timm                   # "PyTorch Image Models" for pretrained models, ResNet, EfficientNet. A collection of SOTA image models including CNNs versions, Vision Tranformers.
+import matplotlib.pyplot as plt
 from utils import *           # Utility functions
 import warnings
 
 # import CNNs models
 from alexNetModel import ModifiedAlexNet
-
+from torch.utils.tensorboard import SummaryWriter
 
 # Configurations
 from config import config
@@ -38,22 +39,23 @@ log.write('---------------------------------------------------------------------
 def train(train_loader, model, criterion, optimizer, epoch, valid_accuracy, start):
     losses = AverageMeter()
     model.train()
-    model.training=True
-    for i,(images,target,fnames) in enumerate(train_loader):
+    model.training = True
+
+    for i, (images, target, fnames) in enumerate(train_loader):
         img = images.cuda(non_blocking=True)
         label = target.cuda(non_blocking=True)
         
         with torch.cuda.amp.autocast():
             logits = model(img)
         loss = criterion(logits, label)
-        losses.update(loss.item(),images.size(0))
+        losses.update(loss.item(), images.size(0))
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()        
         optimizer.zero_grad()
         scheduler.step()
 
-        print('\r',end='',flush=True)
+        print('\r', end ='', flush=True)
         message = '%s %5.1f %6.1f        |      %0.3f     |      %0.3f     | %s' % (\
                 "train", i, epoch, losses.avg, valid_accuracy[0], time_to_str((timer() - start),'min'))
         print(message , end='',flush=True)
@@ -62,16 +64,19 @@ def train(train_loader, model, criterion, optimizer, epoch, valid_accuracy, star
 
     return [losses.avg]
 
+
 # Validating the model
 def evaluate(val_loader, model, criterion, epoch, train_loss, start):
     model.cuda()
     model.eval()
-    model.training=False
+    model.training = False
     map = AverageMeter()
+    losses = AverageMeter()
+
     with torch.no_grad():
         for i, (images,target,fnames) in enumerate(val_loader):
-            img = images.cuda(non_blocking=True)
-            label = target.cuda(non_blocking=True)
+            img = images.cuda(non_blocking=True) #change .to(device)
+            label = target.cuda(non_blocking=True) #change .to(device)
             
             with torch.cuda.amp.autocast():
                 logits = model(img)
@@ -123,6 +128,7 @@ val_loader = DataLoader(val_gen, batch_size=config.batch_size, shuffle=False, pi
 
 ## Loading the model to run/setup
 model = timm.create_model('tf_efficientnet_b0', pretrained=True, num_classes=config.n_classes)
+
 # model = ModifiedAlexNet()  # UNCOMMENT
 
 
@@ -144,13 +150,13 @@ criterion = nn.CrossEntropyLoss().cuda()
 
 # Check for an existing checkpoint and load if found
 checkpoint_path = "/content/drive/My Drive/Knives/Model_Checkpoints/last_checkpoint.pth"
-if os.path.exists(checkpoint_path):
-    checkpoint = torch.load(checkpoint_path)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    start_epoch = checkpoint['epoch']
-else:
-    start_epoch = 0
+#if os.path.exists(checkpoint_path):
+#    checkpoint = torch.load(checkpoint_path)
+#    model.load_state_dict(checkpoint['model_state_dict'])
+#    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+#    start_epoch = checkpoint['epoch']
+#else:
+start_epoch = 0
 
 ############################# Training #################################
 scaler = torch.cuda.amp.GradScaler()
@@ -165,13 +171,13 @@ for epoch in range(start_epoch, config.epochs):
     val_metrics = evaluate(val_loader, model, criterion, epoch, train_metrics, start)
 
     # Saving the model checkpoint after each epoch
-    checkpoint = {
-        'epoch': epoch + 1,
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-        'scaler_state_dict': scaler.state_dict(),  # If using mixed precision
-    }
-    torch.save(checkpoint, checkpoint_path)
+    #checkpoint = {
+    #    'epoch': epoch + 1,
+    #    'model_state_dict': model.state_dict(),
+    #    'optimizer_state_dict': optimizer.state_dict(),
+    #    'scaler_state_dict': scaler.state_dict(),  # If using mixed precision
+    #}
+    #torch.save(checkpoint, checkpoint_path)
 
     ## Saving the current model
     filename = "Knife-Effb0-E" + str(epoch + 1)+  ".pt"
