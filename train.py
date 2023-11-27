@@ -31,9 +31,9 @@ if not os.path.exists("./logs/"):
 log = Logger()                  # Logger Setup
 log.open("logs/s_log_train_2.txt")
 log.write("\n----------------------------------------------- [START %s] %s\n\n" % (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), '-' * 51))
-log.write('                           |----- Train -----|----- Valid----|---------|\n')
-log.write('mode     iter     epoch    |       loss      |        mAP    | time    |\n')
-log.write('-------------------------------------------------------------------------------------------\n')
+log.write('                              |----- Train ------|----- Valid----||----- Valid----|-----------|\n')
+log.write('mode      iter       epoch    |       loss       |       loss    |        mAP     |     time  |\n')
+log.write('----------------------------------------------------------------------------------------------\n')
 
 ## Training the model
 def train(train_loader, model, criterion, optimizer, epoch, valid_accuracy, start):
@@ -56,8 +56,8 @@ def train(train_loader, model, criterion, optimizer, epoch, valid_accuracy, star
         scheduler.step()
 
         print('\r', end ='', flush=True)
-        message = '%s %5.1f %6.1f        |      %0.3f     |      %0.3f     | %s' % (\
-                "train", i, epoch, losses.avg, valid_accuracy[0], time_to_str((timer() - start),'min'))
+        message = '%s %5.1f %6.1f        |       %0.3f     |       %0.3f     |      %0.3f     | %s' % (\
+                "train", i, epoch, losses.avg, valid_accuracy[1], valid_accuracy[0], time_to_str((timer() - start),'min')) #epoch+1
         print(message , end='',flush=True)
     log.write("\n")
     log.write(message)
@@ -80,17 +80,22 @@ def evaluate(val_loader, model, criterion, epoch, train_loss, start):
             
             with torch.cuda.amp.autocast():
                 logits = model(img)
-                preds = logits.softmax(1)
+                preds = logits.softmax(1) # Softmax applied on tensor along dimension 1.
+            
+            loss = criterion(logits, label)       # Now, losses are updated.
+            losses.update(loss.item(), images.size(0))
             
             valid_map5, valid_acc1, valid_acc5 = map_accuracy(preds, label)
-            map.update(valid_map5,img.size(0))
-            print('\r',end='',flush=True)
+            map.update(valid_map5, img.size(0))
+
+            print('\r', end = '', flush=True)
             message = '%s   %5.1f %6.1f       |      %0.3f     |      %0.3f    | %s' % (\
-                    "val", i, epoch, train_loss[0], map.avg,time_to_str((timer() - start),'min'))
+                    "val", i, epoch, train_loss[0], losses.avg, map.avg, time_to_str((timer() - start), 'min')) #epoch+1
             print(message, end='',flush=True)
         log.write("\n")  
         log.write(message)
-    return [map.avg]
+    return [map.avg, losses.avg]
+
 
 ## Computing the mean average precision, accuracy 
 def map_accuracy(probs, truth, k=5):
@@ -108,7 +113,10 @@ def map_accuracy(probs, truth, k=5):
         acc5 = accs[1]
         return map5, acc1, acc5
 
+
+
 ######################## load file and get splits #############################
+
 # Load training and validation data accordingly
 train_imlist = pd.read_csv("/content/drive/My Drive/Knives/train.csv")
 # Update image paths in the DataFrames
@@ -129,13 +137,18 @@ val_loader = DataLoader(val_gen, batch_size=config.batch_size, shuffle=False, pi
 ## Loading the model to run/setup
 model = timm.create_model('tf_efficientnet_b0', pretrained=True, num_classes=config.n_classes)
 
-# model = ModifiedAlexNet()  # UNCOMMENT
+# model = create new pre-trained instance
+
+# model = ModifiedAlexNet()
 
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
+
 ############################# Parameters #################################
+
+
 # Optimizer and scheduler setup
 optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
 scheduler = lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=config.epochs * len(train_loader), eta_min=0,last_epoch=-1)
@@ -165,7 +178,7 @@ best_val_metric = float('inf')  # or -float('inf') for accuracy or other metrics
 
 val_metrics = [0]
 
-for epoch in range(start_epoch, config.epochs):
+for epoch in range(0, config.epochs):
     lr = get_learning_rate(optimizer)
     train_metrics = train(train_loader, model, criterion, optimizer, epoch, val_metrics, start)
     val_metrics = evaluate(val_loader, model, criterion, epoch, train_metrics, start)
@@ -193,8 +206,8 @@ for epoch in range(start_epoch, config.epochs):
 
     # Optionally, save the best model based on validation metric
     if val_metrics[0] < best_val_metric:  # Adjust this condition based on your metric
-        print(f"\nNew best metric achieved: {val_metrics[0]}")
-        best_val_metric = val_metrics[0]
+        print(f"\nNew best metric achieved: {val_metrics[epoch]}")
+        best_val_metric = val_metrics[epoch]
         best_model_path = "/content/drive/My Drive/Knives/Model_Checkpoints/best_model.pth"
         torch.save(model.state_dict(), best_model_path)
     
