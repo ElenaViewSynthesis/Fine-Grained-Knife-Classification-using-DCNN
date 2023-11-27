@@ -31,8 +31,8 @@ if not os.path.exists("./logs/"):
 log = Logger()                  # Logger Setup
 log.open("logs/s_log_train_2.txt")
 log.write("\n----------------------------------------------- [START %s] %s\n\n" % (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), '-' * 51))
-log.write('                              |----- Train ------|----- Valid----||----- Valid----|-----------|\n')
-log.write('mode      iter       epoch    |       loss       |       loss    |        mAP     |     time  |\n')
+log.write('                              |----- Train ------|----- Valid----|------ Valid----|-----------|\n')
+log.write('mode      iter       epoch    |       loss       |       loss    |        mAP     |    time   |\n')
 log.write('----------------------------------------------------------------------------------------------\n')
 
 ## Training the model
@@ -170,16 +170,21 @@ checkpoint_path = "/content/drive/My Drive/Knives/Model_Checkpoints/last_checkpo
 #    start_epoch = checkpoint['epoch']
 #else:
 start_epoch = 0
+writer = SummaryWriter(log_dir='logs')
 
 ############################# Training #################################
 scaler = torch.cuda.amp.GradScaler()
 start = timer()
 best_val_metric = float('inf')  # or -float('inf') for accuracy or other metrics
 
-val_metrics = [0]
+val_metrics = [0, 0]
+training_losses = []
+validation_losses = []
+validation_mAP = []     # how the model will perform on new data, reflecting its generalization capability.
 
 for epoch in range(0, config.epochs):
     lr = get_learning_rate(optimizer)
+
     train_metrics = train(train_loader, model, criterion, optimizer, epoch, val_metrics, start)
     val_metrics = evaluate(val_loader, model, criterion, epoch, train_metrics, start)
 
@@ -192,9 +197,17 @@ for epoch in range(0, config.epochs):
     #}
     #torch.save(checkpoint, checkpoint_path)
 
-    ## Saving the current model
-    filename = "Knife-Effb0-E" + str(epoch + 1)+  ".pt"
-    torch.save(model.state_dict(), filename)
+    training_losses.append(train_metrics[0])
+    validation_losses.append(val_metrics[1])
+    validation_mAP.append(val_metrics[0])
+
+    writer.add_scalars('Loss', {'Training': train_metrics[0], 'Validation': val_metrics[1]}, epoch+1)
+
+    if ((epoch+1)%4) == 0:
+        ## Saving the current model
+        filename = "logs/Knife-Effb0-E" + str(epoch + 1)+  ".pt"
+        torch.save(model.state_dict(), filename)
+
 
     ## Saving the AlexNet model
     #filename = "Knife_AlexNet_Epoch_" + str(epoch + 1) + ".pt"
@@ -222,7 +235,7 @@ for epoch in range(0, config.epochs):
 
 
 # ... [any code after completing all epochs, like closing loggers] ...
-
+writer.close()
 
 
 
