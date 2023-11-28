@@ -14,6 +14,8 @@ from data import knifeDataset # Custom module for dataset handling
 import timm                   # "PyTorch Image Models" for pretrained models, ResNet, EfficientNet. A collection of SOTA image models including CNNs versions, Vision Tranformers.
 import torchvision.models as models
 
+from torchvision import transforms
+
 import matplotlib.pyplot as plt
 from utils import *           # Utility functions
 import warnings
@@ -137,11 +139,22 @@ val_loader = DataLoader(val_gen, batch_size=config.batch_size, shuffle=False, pi
 
 
 model_variant_name = 'tf_efficientnet_b0'
-# model_variant_name = ''
+#model_variant_name = 'densenet121'
+# model_variant_name = 'densenet264'
+''' Layers - 264 
+    Features - One of the deepest DenseNet architectures, designed for top-tier performance in image classification 
+    Applications - Ideal for highly complex image recognition tasks where model performance is paramount.
+'''
+#model_variant_name = 'tf_efficientnet_b6'      #need more computational resources (especially GPU memory) to train
+#model_variant_name = 'deit_tiny_patch16_224'
+
+
 
 ## Loading the model to run/setup
 model = timm.create_model(model_variant_name, pretrained=True, num_classes=config.n_classes)
+#model = nn.DataParallel(model)
 
+# model = ModifiedAlexNet()
 
 '''             *DenseNet Variants*
     https://towardsdatascience.com/review-densenet-image-classification-b6631a8ef803
@@ -160,15 +173,15 @@ all_densenet_models
  'tv_densenet121']
 
 '''
+# Create new pre-trained model instances
+
+#model = timm.create_model(model_variant_name, pretrained=True, num_classes=config.n_classes)
+#model.eval()
 
 
 
 
-# model = create new pre-trained instance
-
-# model = ModifiedAlexNet()
-
-
+log.write('%s Model Variant = ',  model_variant_name)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
@@ -181,7 +194,14 @@ model.to(device)
 
 # Optimizer and scheduler setup
 optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
+#optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-4)
+
 scheduler = lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=config.epochs * len(train_loader), eta_min=0,last_epoch=-1)
+# scheduler = StepLR(optimizer, step_size=30, gamma=0.1)
+
+# Use DataParallel to distribute the model across available GPUs
+#densenet264 = nn.DataParallel(densenet264)
+
 criterion = nn.CrossEntropyLoss().cuda()
 
 
@@ -284,4 +304,8 @@ writer.close()
     Heat map on the average absolute weights of how Target layer (l) reuses the source layer (s)
 '''
 
-   
+''' Parametric Rectified Linear Unit (PReLU)
+ https://medium.com/coinmonks/review-prelu-net-the-first-to-surpass-human-level-performance-in-ilsvrc-2015-image-f619dddd5617
+
+ PReLU-Net obtains 4.94% top-5 error rate on test set which is better than the human-level performance of 5.1%, and GoogLeNet of 6.66%
+''' 
