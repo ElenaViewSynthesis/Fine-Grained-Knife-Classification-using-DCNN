@@ -140,7 +140,7 @@ val_loader = DataLoader(val_gen, batch_size=config.batch_size, shuffle=False, pi
 
 model_variant_name = 'tf_efficientnet_b0'
 #model_variant_name = 'densenet121'
-# model_variant_name = 'densenet264'
+#model_variant_name = 'densenet264'
 ''' Layers - 264 
     Features - One of the deepest DenseNet architectures, designed for top-tier performance in image classification 
     Applications - Ideal for highly complex image recognition tasks where model performance is paramount.
@@ -149,9 +149,9 @@ model_variant_name = 'tf_efficientnet_b0'
 #model_variant_name = 'deit_tiny_patch16_224'
 
 
-
+''' UNCOMMENT '''
 ## Loading the model to run/setup
-model = timm.create_model(model_variant_name, pretrained=True, num_classes=config.n_classes)
+#model = timm.create_model(model_variant_name, pretrained=True, num_classes=config.n_classes)
 #model = nn.DataParallel(model)
 
 # model = ModifiedAlexNet()
@@ -174,14 +174,21 @@ all_densenet_models
 
 '''
 # Create new pre-trained model instances
-
 #model = timm.create_model(model_variant_name, pretrained=True, num_classes=config.n_classes)
 #model.eval()
 
+''' Special case for DenseNet'''
+model = models.densenet264(pretrained=True)
+model.classifier = torch.nn.Linear(model.classifier.in_features, num_classes=config.n_classes)
 
 
 
 log.write('%s Model Variant = ',  model_variant_name)
+# Apply Data Parallel to utilize multiple GPUs
+if torch.cuda.device_count() > 1:
+    print(f"Using {torch.cuda.device_count()} GPUs!")
+    model = torch.nn.DataParallel(model)
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
