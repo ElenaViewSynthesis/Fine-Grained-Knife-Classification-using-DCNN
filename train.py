@@ -12,6 +12,8 @@ from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
 from data import knifeDataset # Custom module for dataset handling
 import timm                   # "PyTorch Image Models" for pretrained models, ResNet, EfficientNet. A collection of SOTA image models including CNNs versions, Vision Tranformers.
+import torchvision.models as models
+
 import matplotlib.pyplot as plt
 from utils import *           # Utility functions
 import warnings
@@ -134,8 +136,33 @@ val_gen = knifeDataset(val_imlist, mode="val")
 val_loader = DataLoader(val_gen, batch_size=config.batch_size, shuffle=False, pin_memory=True, num_workers=8)
 
 
+model_variant_name = 'tf_efficientnet_b0'
+# model_variant_name = ''
+
 ## Loading the model to run/setup
-model = timm.create_model('tf_efficientnet_b0', pretrained=True, num_classes=config.n_classes)
+model = timm.create_model(model_variant_name, pretrained=True, num_classes=config.n_classes)
+
+
+'''             *DenseNet Variants*
+    https://towardsdatascience.com/review-densenet-image-classification-b6631a8ef803
+
+all_densenet_models = timm.list_models('*densenet*')   
+all_densenet_models
+
+['densenet121',
+ 'densenet121d',
+ 'densenet161',
+ 'densenet169',
+ 'densenet201',
+ 'densenet264',
+ 'densenet264d_iabn',
+ 'densenetblur121d',
+ 'tv_densenet121']
+
+'''
+
+
+
 
 # model = create new pre-trained instance
 
@@ -148,6 +175,9 @@ model.to(device)
 
 ############################# Parameters #################################
 
+''' from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR, ReduceLROnPlateau, OneCycleLR 
+
+'''
 
 # Optimizer and scheduler setup
 optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
@@ -227,13 +257,6 @@ for epoch in range(0, config.epochs):
      # ... [any other code needed at the end of each epoch] ...
 
 
-   
-
-
-
-
-
-
 # ... [any code after completing all epochs, like closing loggers] ...
 writer.close()
 
@@ -253,6 +276,12 @@ writer.close()
     ## Saving the model
 #    filename = "Knife-Effb0-E" + str(epoch + 1)+  ".pt"
 #    torch.save(model.state_dict(), filename)
-    
+##########################################################################
+
+
+
+''' DesNets Variants
+    Heat map on the average absolute weights of how Target layer (l) reuses the source layer (s)
+'''
 
    
