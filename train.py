@@ -22,7 +22,7 @@ import warnings
 
 # import CNNs models
 from alexNetModel import ModifiedAlexNet
-from torch.utils.tensorboard import SummaryWriter
+#from torch.utils.tensorboard import SummaryWriter
 
 # Configurations
 from config import config
@@ -33,11 +33,11 @@ warnings.filterwarnings('ignore')
 if not os.path.exists("./logs/"):
     os.mkdir("./logs/")
 log = Logger()                  # Logger Setup
-log.open("logs/s_log_train_2.txt")
+log.open("logs/s_log_train_1.txt")
 log.write("\n----------------------------------------------- [START %s] %s\n\n" % (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), '-' * 51))
 log.write('                              |----- Train ------|----- Valid----|------ Valid----|-----------|\n')
 log.write('mode      iter       epoch    |       loss       |       loss    |        mAP     |    time   |\n')
-log.write('----------------------------------------------------------------------------------------------\n')
+log.write('-----------------------------------------------------------------------------------------------\n')
 
 ## Training the model
 def train(train_loader, model, criterion, optimizer, epoch, valid_accuracy, start):
@@ -60,8 +60,8 @@ def train(train_loader, model, criterion, optimizer, epoch, valid_accuracy, star
         scheduler.step()
 
         print('\r', end ='', flush=True)
-        message = '%s %5.1f %6.1f        |       %0.3f     |       %0.3f     |      %0.3f     | %s' % (\
-                "train", i, epoch, losses.avg, valid_accuracy[1], valid_accuracy[0], time_to_str((timer() - start),'min')) #epoch+1
+        message = '%s %5.1f %6.1f       |       %0.3f     |       %0.3f     |      %0.3f     | %s' % (\
+                "train", i, epoch+1, losses.avg, valid_accuracy[1], valid_accuracy[0], time_to_str((timer() - start),'min')) #epoch+1
         print(message , end='',flush=True)
     log.write("\n")
     log.write(message)
@@ -93,8 +93,8 @@ def evaluate(val_loader, model, criterion, epoch, train_loss, start):
             map.update(valid_map5, img.size(0))
 
             print('\r', end = '', flush=True)
-            message = '%s   %5.1f %6.1f       |      %0.3f     |      %0.3f    | %s' % (\
-                    "val", i, epoch, train_loss[0], losses.avg, map.avg, time_to_str((timer() - start), 'min')) #epoch+1
+            message = '%s   %5.1f %6.1f       |       %0.3f     |      %0.3f      |      %0.3f     | %s' % (\
+                    "val", i, epoch+1, train_loss[0], losses.avg, map.avg, time_to_str((timer() - start), 'min')) #epoch+1
             print(message, end='',flush=True)
         log.write("\n")  
         log.write(message)
@@ -151,7 +151,7 @@ model_variant_name = 'tf_efficientnet_b0'
 
 ''' UNCOMMENT '''
 ## Loading the model to run/setup
-model = timm.create_model(model_variant_name, pretrained=True, num_classes=config.n_classes)
+#model = timm.create_model(model_variant_name, pretrained=True, num_classes=config.n_classes)
 #model = nn.DataParallel(model)
 
 # model = ModifiedAlexNet()
@@ -174,10 +174,10 @@ all_densenet_models
 
 '''
 # Create new pre-trained model instances
-#model = timm.create_model(model_variant_name, pretrained=True, num_classes=config.n_classes)
+model = timm.create_model(model_variant_name, pretrained=True, num_classes=config.n_classes)
 #model.eval()
 
-''' Special case for DenseNet'''    #UNCOMMENT
+''' Special case for DenseNet'''
 #model = models.densenet264(pretrained=True)
 #model.classifier = torch.nn.Linear(model.classifier.in_features, num_classes=config.n_classes)
 
@@ -185,9 +185,9 @@ all_densenet_models
 
 log.write('%s Model Variant = ',  model_variant_name)
 # Apply Data Parallel to utilize multiple GPUs
-if torch.cuda.device_count() > 1:
-    print(f"Using {torch.cuda.device_count()} GPUs!")
-    model = torch.nn.DataParallel(model)
+#if torch.cuda.device_count() > 1:
+#    print(f"Using {torch.cuda.device_count()} GPUs!")
+#    model = torch.nn.DataParallel(model)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model.to(device)
@@ -227,7 +227,7 @@ checkpoint_path = "/content/drive/My Drive/Knives/Model_Checkpoints/last_checkpo
 #    start_epoch = checkpoint['epoch']
 #else:
 start_epoch = 0
-writer = SummaryWriter(log_dir='logs')
+#writer = SummaryWriter(log_dir='logs')
 
 ############################# Training #################################
 scaler = torch.cuda.amp.GradScaler()
@@ -258,20 +258,20 @@ for epoch in range(0, config.epochs):
     validation_losses.append(val_metrics[1])
     validation_mAP.append(val_metrics[0])
 
-    writer.add_scalars('Loss', {'Training': train_metrics[0], 'Validation': val_metrics[1]}, epoch+1)
+    #writer.add_scalars('Loss', {'Training': train_metrics[0], 'Validation': val_metrics[1]}, epoch+1)
 
     if ((epoch+1)%4) == 0:
         ## Saving the current model
-        filename = "logs/Knife-Effb0-E" + str(epoch + 1)+  ".pt"   # "logs/Knife-Effb6-E", "logs/Knife-denseNet121-E", "logs/Knife-deit_tiny-E", 
+        filename = "logs/Knife-Effb0-E" + str(epoch + 1)+  ".pt" # "logs/Knife-Effb6-E", "logs/Knife-denseNet121-E", "logs/Knife-deit_tiny-E", 
         torch.save(model.state_dict(), filename)
 
     ## Saving the AlexNet model
-    #filename = "Knife_AlexNet_Epoch_" + str(epoch + 1) + ".pt"
+    #filename = "logs/Knife_AlexNet_Epoch_" + str(epoch + 1) + ".pt"
 
 
     # Optionally, save the best model based on validation metric
     if val_metrics[0] < best_val_metric:  # Adjust this condition based on your metric
-        print(f"\nNew best metric achieved: {val_metrics[epoch]}")
+        #print(f"\nNew best metric achieved: {val_metrics[epoch]}")
         best_val_metric = val_metrics[epoch]
         best_model_path = "/content/drive/My Drive/Knives/Model_Checkpoints/best_model.pth"
         torch.save(model.state_dict(), best_model_path)
@@ -317,12 +317,12 @@ epochs = range(1, config.epochs + 1)
 epochs_list = list(epochs)  # Convert range object to a list for plt.xticks
 
 # Configurations
-modification_num = 1 # Gradually change (config_name)
+modification_num = 1 # Gradually change
 
-'''Plot and Outpout Results'''
+'''Plot and save results'''
 
 if not os.path.exists(f"./FinalPlots/{model_variant_name}/{modification_num}"):
-    os.mkdir(f"./result_plots/{model_variant_name}/{modification_num}")
+    os.mkdir(f"./FinalPlots/{model_variant_name}/{modification_num}")
 
 # Plotting training/validation losses vs epochs
 plt.figure(figsize=(10, 6))
@@ -342,7 +342,7 @@ plt.show()
 plt.figure(figsize=(10, 6))
 plt.plot(epochs, val_map_tensor.cpu().numpy(), 'go-', label='Validation mAP')
 plt.xlabel('Epochs')
-plt.ylabel('mAP')
+plt.ylabel('Validation mAP')
 plt.title('Validation Mean Average Precision (mAP) over Epochs')
 plt.xticks(epochs_list)
 plt.legend()
@@ -352,7 +352,7 @@ plt.savefig(
     f'{modification_num}/val_map_vs_epochs_{modification_num}.png')
 plt.show()
 
-writer.close()
+#writer.close()
 
 
 # Add for Testing 
