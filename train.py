@@ -265,13 +265,8 @@ for epoch in range(0, config.epochs):
         filename = "logs/Knife-Effb0-E" + str(epoch + 1)+  ".pt"
         torch.save(model.state_dict(), filename)
 
-
     ## Saving the AlexNet model
     #filename = "Knife_AlexNet_Epoch_" + str(epoch + 1) + ".pt"
-    #torch.save(model.state_dict(), filename)
-
-
-
 
 
     # Optionally, save the best model based on validation metric
@@ -285,8 +280,6 @@ for epoch in range(0, config.epochs):
 
 
 # ... [any code after completing all epochs, like closing loggers] ...
-writer.close()
-
 
 
 ############################# Training #################################
@@ -306,7 +299,6 @@ writer.close()
 ##########################################################################
 
 
-
 ''' DesNets Variants
     Heat map on the average absolute weights of how Target layer (l) reuses the source layer (s)
 '''
@@ -316,3 +308,51 @@ writer.close()
 
  PReLU-Net obtains 4.94% top-5 error rate on test set which is better than the human-level performance of 5.1%, and GoogLeNet of 6.66%
 ''' 
+# Outside for loop
+training_losses_tensor = torch.tensor(training_losses) 
+val_losses_tensor = torch.tensor(validation_losses)
+val_map_tensor = torch.tensor(validation_mAP)
+
+epochs = range(1, config.epochs + 1)
+epochs_list = list(epochs)  # Convert range object to a list for plt.xticks
+
+# Configurations
+modification_num = 1 # Gradually change (config_name)
+
+'''Plot and save results'''
+
+if not os.path.exists(f"./FinalPlots/{model_variant_name}/{modification_num}"):
+    os.mkdir(f"./result_plots/{model_variant_name}/{modification_num}")
+
+# Plotting training/validation losses vs epochs
+plt.figure(figsize=(10, 6))
+plt.plot(epochs, training_losses_tensor.cpu().numpy(), label='Training Loss', marker='o', color='blue')
+plt.plot(epochs, val_losses_tensor.cpu().numpy(), label='Validation Loss', marker='o', color='green')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.title('Training and Validation Loss')
+plt.xticks(epochs_list)
+plt.legend()
+plt.grid(True)
+plt.savefig(f'/content/drive/My Drive/Knives/FinalPlots/{model_variant_name}/'
+                f'{modification_num}/train_val_loss_vs_epochs_{modification_num}.png')
+plt.show()
+
+# Plotting validation mAP vs epochs
+plt.figure(figsize=(10, 6))
+plt.plot(epochs, val_map_tensor.cpu().numpy(), label='Validation mAP', marker='o', color='red')
+plt.xlabel('Epochs')
+plt.ylabel('Validation mAP')
+plt.title('Validation mAP vs epochs')
+plt.xticks(epochs_list)
+plt.legend()
+plt.grid(True)
+plt.savefig(
+    f'/content/drive/My Drive/Knives/FinalPlots/FinalPlots/{model_variant_name}/'
+    f'{modification_num}/val_map_vs_epochs_{modification_num}.png')
+plt.show()
+
+writer.close()
+
+
+# Add for Testing 
