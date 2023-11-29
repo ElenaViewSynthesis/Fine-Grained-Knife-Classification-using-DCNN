@@ -151,7 +151,7 @@ model_variant_name = 'tf_efficientnet_b0'
 
 ''' UNCOMMENT '''
 ## Loading the model to run/setup
-#model = timm.create_model(model_variant_name, pretrained=True, num_classes=config.n_classes)
+model = timm.create_model(model_variant_name, pretrained=True, num_classes=config.n_classes)
 #model = nn.DataParallel(model)
 
 # model = ModifiedAlexNet()
@@ -177,9 +177,9 @@ all_densenet_models
 #model = timm.create_model(model_variant_name, pretrained=True, num_classes=config.n_classes)
 #model.eval()
 
-''' Special case for DenseNet'''
-model = models.densenet264(pretrained=True)
-model.classifier = torch.nn.Linear(model.classifier.in_features, num_classes=config.n_classes)
+''' Special case for DenseNet'''    #UNCOMMENT
+#model = models.densenet264(pretrained=True)
+#model.classifier = torch.nn.Linear(model.classifier.in_features, num_classes=config.n_classes)
 
 
 
@@ -262,7 +262,7 @@ for epoch in range(0, config.epochs):
 
     if ((epoch+1)%4) == 0:
         ## Saving the current model
-        filename = "logs/Knife-Effb0-E" + str(epoch + 1)+  ".pt"
+        filename = "logs/Knife-Effb0-E" + str(epoch + 1)+  ".pt"   # "logs/Knife-Effb6-E", "logs/Knife-denseNet121-E", "logs/Knife-deit_tiny-E", 
         torch.save(model.state_dict(), filename)
 
     ## Saving the AlexNet model
@@ -319,15 +319,15 @@ epochs_list = list(epochs)  # Convert range object to a list for plt.xticks
 # Configurations
 modification_num = 1 # Gradually change (config_name)
 
-'''Plot and save results'''
+'''Plot and Outpout Results'''
 
 if not os.path.exists(f"./FinalPlots/{model_variant_name}/{modification_num}"):
     os.mkdir(f"./result_plots/{model_variant_name}/{modification_num}")
 
 # Plotting training/validation losses vs epochs
 plt.figure(figsize=(10, 6))
-plt.plot(epochs, training_losses_tensor.cpu().numpy(), label='Training Loss', marker='o', color='blue')
-plt.plot(epochs, val_losses_tensor.cpu().numpy(), label='Validation Loss', marker='o', color='green')
+plt.plot(epochs, training_losses_tensor.cpu().numpy(), 'bo-', label='Training Loss')
+plt.plot(epochs, val_losses_tensor.cpu().numpy(), 'ro-', label='Validation Loss')
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
 plt.title('Training and Validation Loss')
@@ -340,10 +340,10 @@ plt.show()
 
 # Plotting validation mAP vs epochs
 plt.figure(figsize=(10, 6))
-plt.plot(epochs, val_map_tensor.cpu().numpy(), label='Validation mAP', marker='o', color='red')
+plt.plot(epochs, val_map_tensor.cpu().numpy(), 'go-', label='Validation mAP')
 plt.xlabel('Epochs')
-plt.ylabel('Validation mAP')
-plt.title('Validation mAP vs epochs')
+plt.ylabel('mAP')
+plt.title('Validation Mean Average Precision (mAP) over Epochs')
 plt.xticks(epochs_list)
 plt.legend()
 plt.grid(True)
