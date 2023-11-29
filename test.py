@@ -14,14 +14,17 @@ from utils import *
 warnings.filterwarnings('ignore')
 
 # Validating the model
-def evaluate(val_loader,model):
+def evaluate(val_loader, model):
+    #model.to(device)
     model.cuda()
     model.eval()
-    model.training=False
+    model.training = False
     map = AverageMeter()
     with torch.no_grad():
-        for i, (images,target,fnames) in enumerate(val_loader):
+        for i, (images, target, fnames) in enumerate(val_loader):
+            #img = images.to(device, non_blocking=True)
             img = images.cuda(non_blocking=True)
+            #label = target.to(device, non_blocking=True)
             label = target.cuda(non_blocking=True)
             
             with torch.cuda.amp.autocast():
@@ -29,7 +32,7 @@ def evaluate(val_loader,model):
                 preds = logits.softmax(1)
             
             valid_map5, valid_acc1, valid_acc5 = map_accuracy(preds, label)
-            map.update(valid_map5,img.size(0))
+            map.update(valid_map5, img.size(0))
     return map.avg
 
 ## Computing the mean average precision, accuracy 
@@ -48,22 +51,37 @@ def map_accuracy(probs, truth, k=5):
         acc5 = accs[1]
         return map5, acc1, acc5
 
-######################## load file and get splits #############################
+######################## Load File and Get Splits #############################
 print('reading test file')
 test_files = pd.read_csv("/content/drive/My Drive/Knives/test.csv")
 print('Creating test dataloader')
 test_gen = knifeDataset(test_files, mode="test") #CHANGED the mode to test, not val (NOT Correct to test with training data -> Doc in REPORT)
 test_loader = DataLoader(test_gen, batch_size=64, shuffle=False, pin_memory=True, num_workers=8)
 
+
 print('loading trained model')
-model = timm.create_model('tf_efficientnet_b0', pretrained=True,num_classes=config.n_classes)
-model.load_state_dict(torch.load('Knife-Effb0-E9.pt'))
+
+model_variant_name = 'tf_efficientnet_b0' # 'tf_efficientnet_b6', 'densenet121', 'densenet264', 'deit_tiny_patch16_224'
+model = timm.create_model(model_variant_name, pretrained=True, num_classes=config.n_classes)
+
+# For DenseNet ONLY
+#model = models.densenet264(pretrained=True)
+#model.classifier = torch.nn.Linear(model.classifier.in_features, num_classes=config.n_classes)
+
+# Load the Model Weights
+#model.load_state_dict(torch.load('Knife-Effb0-E9.pt')) # E12, E13, E40 for deit
+model.load_state_dict(torch.load('logs/Knife-Effb0-E9.pt')) # change E for epochs number
+
+#model = myModel.RedesignedNN()
+# mAP = 
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
+
 ############################# Training #################################
 print('Evaluating trained model')
-map = evaluate(test_loader,model)
-print("mAP =",map)
+map = evaluate(test_loader, model)
+print("mAP =", map)
     
    
