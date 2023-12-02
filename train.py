@@ -61,7 +61,7 @@ def train(train_loader, model, criterion, optimizer, epoch, valid_accuracy, star
 
         print('\r', end ='', flush=True)
         message = '%s %5.1f %6.1f       |       %0.3f     |       %0.3f     |      %0.3f     | %s' % (\
-                "train", i, epoch+1, losses.avg, valid_accuracy[1], valid_accuracy[0], time_to_str((timer() - start),'min')) #epoch+1
+                "train", i, epoch+1, losses.avg, valid_accuracy[1], valid_accuracy[0], time_to_str((timer() - start),'min'))
         print(message , end='',flush=True)
     log.write("\n")
     log.write(message)
@@ -93,8 +93,8 @@ def evaluate(val_loader, model, criterion, epoch, train_loss, start):
             map.update(valid_map5, img.size(0))
 
             print('\r', end = '', flush=True)
-            message = '%s   %5.1f %6.1f       |       %0.3f     |      %0.3f      |      %0.3f     | %s' % (\
-                    "val", i, epoch+1, train_loss[0], losses.avg, map.avg, time_to_str((timer() - start), 'min')) #epoch+1
+            message = '%s   %5.1f %6.1f       |       %0.3f     |       %0.3f     |      %0.3f     | %s' % (\
+                    "val", i, epoch+1, train_loss[0], losses.avg, map.avg, time_to_str((timer() - start), 'min'))
             print(message, end='',flush=True)
         log.write("\n")  
         log.write(message)
@@ -128,7 +128,7 @@ train_imlist['Id'] = train_imlist['Id'].apply(lambda x: '/content/drive/My Drive
 
 # Create datasets and dataloaders
 train_gen = knifeDataset(train_imlist, mode="train")
-train_loader = DataLoader(train_gen, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=8)
+train_loader = DataLoader(train_gen, batch_size=config.batch_size, shuffle=True, pin_memory=True, num_workers=8) # num_workers=16
 
 # For Validation using val.csv instead of test.csv (as it was by default)
 val_imlist = pd.read_csv("/content/drive/My Drive/Knives/val.csv") # CHANGED to appropriate csv file for validation, (Not validate with test.csv)
@@ -175,12 +175,10 @@ all_densenet_models
 '''
 # Create new pre-trained model instances
 model = timm.create_model(model_variant_name, pretrained=True, num_classes=config.n_classes)
-#model.eval()
 
 ''' Special case for DenseNet'''
 #model = models.densenet264(pretrained=True)
 #model.classifier = torch.nn.Linear(model.classifier.in_features, num_classes=config.n_classes)
-
 
 
 log.write('%s Model Variant = ',  model_variant_name)
@@ -262,7 +260,7 @@ for epoch in range(0, config.epochs):
 
     if ((epoch+1)%4) == 0:
         ## Saving the current model
-        filename = "logs/Knife-Effb0-E" + str(epoch + 1)+  ".pt" # "logs/Knife-Effb6-E", "logs/Knife-denseNet121-E", "logs/Knife-deit_tiny-E", 
+        filename = "Knife-Effb0-E" + str(epoch + 1)+  ".pt" # "logs/Knife-Effb6-E", "logs/Knife-denseNet121-E", "logs/Knife-deit_tiny-E", 
         torch.save(model.state_dict(), filename)
 
     ## Saving the AlexNet model
@@ -308,6 +306,14 @@ for epoch in range(0, config.epochs):
 
  PReLU-Net obtains 4.94% top-5 error rate on test set which is better than the human-level performance of 5.1%, and GoogLeNet of 6.66%
 ''' 
+
+
+if not os.path.exists(f"./FinalPlots/{model_variant_name}"):
+  os.mkdir(f"./FinalPlots/{model_variant_name}")
+
+if not os.path.exists(f"./FinalPlots/{model_variant_name}/logs"):
+  os.mkdir(f"./FinalPlots/{model_variant_name}/logs")
+
 # Outside for loop
 training_losses_tensor = torch.tensor(training_losses) 
 val_losses_tensor = torch.tensor(validation_losses)
@@ -317,12 +323,14 @@ epochs = range(1, config.epochs + 1)
 epochs_list = list(epochs)  # Convert range object to a list for plt.xticks
 
 # Configurations
-modification_num = 1 # Gradually change
+modification_num = 'logs' # Gradually change
 
 '''Plot and save results'''
 
-if not os.path.exists(f"./FinalPlots/{model_variant_name}/{modification_num}"):
-    os.mkdir(f"./FinalPlots/{model_variant_name}/{modification_num}")
+directory_path = f"./FinalPlots/{model_variant_name}"
+if not os.path.exists(f"./FinalPlots/{model_variant_name}"):
+    # Use os.makedirs() instead of os.mkdir()
+    os.makedirs(directory_path, exist_ok=True)
 
 # Plotting training/validation losses vs epochs
 plt.figure(figsize=(10, 6))
@@ -335,7 +343,7 @@ plt.xticks(epochs_list)
 plt.legend()
 plt.grid(True)
 plt.savefig(f'/content/drive/My Drive/Knives/FinalPlots/{model_variant_name}/'
-                f'{modification_num}/train_val_loss_vs_epochs_{modification_num}.png')
+                f'train_val_loss_vs_epochs.png')
 plt.show()
 
 # Plotting validation mAP vs epochs
@@ -348,8 +356,8 @@ plt.xticks(epochs_list)
 plt.legend()
 plt.grid(True)
 plt.savefig(
-    f'/content/drive/My Drive/Knives/FinalPlots/FinalPlots/{model_variant_name}/'
-    f'{modification_num}/val_map_vs_epochs_{modification_num}.png')
+    f'/content/drive/My Drive/Knives/FinalPlots/{model_variant_name}/'
+    f'val_map_vs_epochs.png')
 plt.show()
 
 #writer.close()
