@@ -33,7 +33,7 @@ warnings.filterwarnings('ignore')
 if not os.path.exists("./logs/"):
     os.mkdir("./logs/")
 log = Logger()                  # Logger Setup
-log.open("logs/s_log_train_1.txt")
+log.open("logs/%s_log_train_1.txt")
 log.write("\n----------------------------------------------- [START %s] %s\n\n" % (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), '-' * 51))
 log.write('                              |----- Train ------|----- Valid----|------ Valid----|-----------|\n')
 log.write('mode      iter       epoch    |       loss       |       loss    |        mAP     |    time   |\n')
@@ -308,11 +308,11 @@ for epoch in range(0, config.epochs):
 ''' 
 
 
-if not os.path.exists(f"./FinalPlots/{model_variant_name}"):
-  os.mkdir(f"./FinalPlots/{model_variant_name}")
+if not os.path.exists(f"/content/drive/My Drive/Knives/FinalPlots/{model_variant_name}"):
+  os.mkdir(f"/content/drive/My Drive/Knives/FinalPlots/{model_variant_name}")
 
-if not os.path.exists(f"./FinalPlots/{model_variant_name}/logs"):
-  os.mkdir(f"./FinalPlots/{model_variant_name}/logs")
+if not os.path.exists(f"/content/drive/My Drive/Knives/FinalPlots/{model_variant_name}/logs"):
+  os.mkdir(f"/content/drive/My Drive/Knives/FinalPlots/{model_variant_name}/logs")
 
 # Outside for loop
 training_losses_tensor = torch.tensor(training_losses) 
@@ -327,8 +327,8 @@ modification_num = 'logs' # Gradually change
 
 '''Plot and save results'''
 
-directory_path = f"./FinalPlots/{model_variant_name}"
-if not os.path.exists(f"./FinalPlots/{model_variant_name}"):
+directory_path = f"/content/drive/My Drive/Knives/FinalPlots/{model_variant_name}"
+if not os.path.exists(f"/content/drive/My Drive/Knives/FinalPlots/{model_variant_name}"):
     # Use os.makedirs() instead of os.mkdir()
     os.makedirs(directory_path, exist_ok=True)
 
@@ -342,8 +342,7 @@ plt.title('Training and Validation Loss')
 plt.xticks(epochs_list)
 plt.legend()
 plt.grid(True)
-plt.savefig(f'/content/drive/My Drive/Knives/FinalPlots/{model_variant_name}/'
-                f'train_val_loss_vs_epochs.png')
+plt.savefig(f'/content/drive/My Drive/Knives/FinalPlots/{model_variant_name}/train_val_loss_vs_epochs.png')
 plt.show()
 
 # Plotting validation mAP vs epochs
@@ -355,9 +354,7 @@ plt.title('Validation Mean Average Precision (mAP) over Epochs')
 plt.xticks(epochs_list)
 plt.legend()
 plt.grid(True)
-plt.savefig(
-    f'/content/drive/My Drive/Knives/FinalPlots/{model_variant_name}/'
-    f'val_map_vs_epochs.png')
+plt.savefig(f'/content/drive/My Drive/Knives/FinalPlots/{model_variant_name}/val_map_vs_epochs.png')
 plt.show()
 
 #writer.close()
