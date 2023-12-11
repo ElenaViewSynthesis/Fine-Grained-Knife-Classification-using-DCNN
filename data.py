@@ -39,8 +39,8 @@ class knifeDataset(Dataset):
 
         if self.mode == "train":
             X = T.Compose([T.ToPILImage(),
-                    T.Resize((config.img_weight,config.img_height)),
-                    T.ColorJitter(brightness=0.2,contrast=0,saturation=0,hue=0),
+                    T.Resize((config.img_weight, config.img_height)),
+                    T.ColorJitter(brightness=0.2, contrast=0, saturation=0, hue=0),
                     T.RandomRotation(degrees=(0, 180)),
                     T.RandomVerticalFlip(p=0.5),
                     T.RandomHorizontalFlip(p=0.5),
@@ -48,11 +48,19 @@ class knifeDataset(Dataset):
                     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])(X)
         elif self.mode == "val":
             X = T.Compose([T.ToPILImage(),
-                    T.Resize((config.img_weight,config.img_height)),
+                    T.Resize((config.img_weight, config.img_height)),
                     T.ToTensor(),
                     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])(X)
         elif self.mode == "test":
-            X = T.Compose([T.ToPILImage(), T.ToTensor()])(X)
+            X = T.Compose([T.ToPILImage(),
+                    # Ensure all images have the same dimensions
+                    T.Resize((config.img_weight, config.img_height)),
+                    # Convert the images to PyTorch tensors for processing with PyTorch models.
+                    T.ToTensor(),
+                    # Normalize the images based on the *mean* and *standard deviation*. This is done
+                    # to align the data distribution with the distribution used during the pretraining 
+                    # of the model (often on datasets like ImageNet). 
+                    T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])(X)
 
         return X.float(), labels, fname
         #return torch.from_numpy(X).float(), labels, fname
@@ -71,7 +79,7 @@ class knifeDataset(Dataset):
 
         #print("Relative PATH=", relative_path)
         #print("***********************************************************************************")          
-        print("Full Path:", filename)
+        #print("Full Path:", filename)
         
         # Convert BGR to RGB if the image was successfully read
         #im = cv2.imread(relative_path)[:,:,::-1]
