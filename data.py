@@ -8,7 +8,13 @@ import torchvision.transforms.functional as F
 import pathlib
 from torchvision.io import read_image
 import numpy as np 
-import cv2
+import cv2 # OpenCV
+import os
+import torch
+
+#import mahotas
+#import dlib
+#import pcl   #complex dependencies required
 
 # create dataset class
 class knifeDataset(Dataset):
@@ -21,11 +27,16 @@ class knifeDataset(Dataset):
         return len(self.images_df)
 
     def __getitem__(self,index):
+        # Read the image using the full path
         X,fname = self.read_images(index)
-        if not self.mode == "test":
-            labels = self.images_df.iloc[index].Label
-        else:
-            y = str(self.images_df.iloc[index].Id.absolute())
+        labels = self.images_df.iloc[index].Label
+
+        #if not self.mode == "test":
+            #labels = self.images_df.iloc[index].Label
+        #else:
+            #labels = str(self.images_df.iloc[index].Id.absolute().__str__())
+            #labels = None
+
         if self.mode == "train":
             X = T.Compose([T.ToPILImage(),
                     T.Resize((config.img_weight,config.img_height)),
@@ -40,12 +51,37 @@ class knifeDataset(Dataset):
                     T.Resize((config.img_weight,config.img_height)),
                     T.ToTensor(),
                     T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])])(X)
-        return X.float(),labels, fname
+        elif self.mode == "test":
+            X = T.Compose([T.ToPILImage(), T.ToTensor()])(X)
+
+        return X.float(), labels, fname
+        #return torch.from_numpy(X).float(), labels, fname
 
     def read_images(self,index):
-        row = self.images_df.iloc[index]
+        row = self.images_df.iloc[index]          # Returns the integer of Image Label
+        #print("...................................................................................................")
+        #print(row)
+        #print("ROW ID=", row.Id)
+
+        base_path = "/content/drive/My Drive/Knives"       # Remove './' from the beginning
+        #relative_path = str(row.Id).lstrip('./')            # row'Id' column contains the relative paths
+        #relative_path = str(row.Id)
+        #filename = os.path.join(base_path, relative_path)  # Prepend base path to the relative path
         filename = str(row.Id)
-        im = cv2.imread(filename)[:,:,::-1]
+
+        #print("Relative PATH=", relative_path)
+        #print("***********************************************************************************")          
+        print("Full Path:", filename)
+        
+        # Convert BGR to RGB if the image was successfully read
+        #im = cv2.imread(relative_path)[:,:,::-1]
+        #im = cv2.imread(filename)[:,:,::-1] if cv2.imread(filename) is not None else None
+        im = cv2.imread(filename)  # Attempt to read the image once
+        if im is not None:
+            im = im[:, :, ::-1]  # Convert from BGR to RGB if image read successfully
+        else:
+            print(f"Failed to read image at path: {filename}")
+
         return im, filename
 
 
